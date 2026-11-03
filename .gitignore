@@ -1,0 +1,8 @@
+node_modules/
+vendor/xiaohu/config.json
+*.log
+*.bak
+*.tmp
+package.json.bak-*
+.DS_Store
+Thumbs.db

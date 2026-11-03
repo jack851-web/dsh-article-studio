@@ -1,0 +1,7 @@
+# Bundle patch layer for dsh-article-studio.
+#
+# One row: load this package's main entry as the Host half. The browser half is
+# declared by package.json's `dsh.client` and registers the sidebar tab.
+- insert:
+    - id: article-studio
+      name: 'dsh-article-studio'
