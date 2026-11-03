@@ -27,6 +27,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
 
 卸载：`uninstall.ps1`。
 
+## 流程规则（强制）
+
+1. **必须配图**：每篇文章至少 3 张图，`format` 前由 Host 校验，不足直接拒绝并说明缺几张；
+2. **图必须有出处**：`grab` 从文章 `sourceUrl` 抓取官网图片，写入 `images/` 并在 `images/manifest.json` 记录来源页、图片地址与时间；
+3. **正文要引用**：图片需以 `![](images/xxx.jpg)` 写进 `draft.md` 的对应章节，排版才会嵌入正文；
+4. **排版产物**：`out/<输入名>/preview.html` 自带「复制到微信」，与技能原版一致；
+5. **发布**：`publish` 只推送草稿箱，群发仍需人工在公众号后台确认。
+
 ## 配置
 
 - 排版：`vendor/xiaohu/config.json` 自动从 `%USERPROFILE%\.dsh\article-studio\config.json` 或 `config.example.json` 生成；

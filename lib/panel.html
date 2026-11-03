@@ -58,6 +58,7 @@ select.theme{flex:1;min-width:0;padding:5px 8px;border:1px solid var(--rule);bor
     <div class="chips"><select id="theme" class="theme" title="排版风格（来自 xiaohu-wechat-format 的 85 套主题）"></select></div>
     <div class="actions">
       <button id="apply" class="primary">应用排版</button>
+      <button id="grab">抓官网配图</button>
       <button id="dry">演练</button>
       <button id="publish">推送草稿</button>
     </div>
@@ -107,7 +108,7 @@ async function rpc(body){
 }
 function setBusy(v){
   busy = v;
-  ["apply","dry","publish","create","theme"].forEach((id) => { $(id).disabled = v; });
+  ["apply","dry","publish","create","theme","grab"].forEach((id) => { $(id).disabled = v; });
 }
 function previewUrl(){ return "/dsh-article-studio/preview/" + encodeURIComponent(current.id) + "?t=" + (++tick); }
 
@@ -157,7 +158,8 @@ async function openArticle(id){
   $("detail").style.display = "flex";
   $("back").style.display = "";
   $("title").textContent = current.title || current.id;
-  $("state").textContent = "第 " + (current.draftVersion || 0) + " 稿 · " + (current.theme || "");
+  const imageCount = (r.images || []).length;
+  $("state").textContent = "第 " + (current.draftVersion || 0) + " 稿 · " + (current.theme || "") + " · 配图 " + imageCount + " 张" + (imageCount < 3 ? "（不足 3 张，排版会被拦下）" : "");
   renderThemes();
   $("preview").src = previewUrl();
 }
@@ -199,6 +201,19 @@ async function runAction(body, okText){
   }
 }
 $("apply").onclick = () => runAction({ action: "format", id: current.id, theme: current.theme }, "已更新预览");
+$("grab").onclick = async () => {
+  if (!current || busy) return;
+  const url = current.sourceUrl;
+  if (!url) { toast("先在 article.json 里填 sourceUrl（官网地址）"); return; }
+  setBusy(true);
+  try {
+    const r = await rpc({ action: "grab", id: current.id, url });
+    toast(r && r.ok ? "已抓取 " + r.saved + " 张官网图" : "抓取失败：" + ((r && r.error) || ""));
+    if (r && r.ok) await openArticle(current.id);
+  } finally {
+    setBusy(false);
+  }
+};
 $("dry").onclick = () => runAction({ action: "publish", id: current.id, dryRun: true }, "演练完成");
 $("publish").onclick = () => runAction({ action: "publish", id: current.id, dryRun: false }, "已推送草稿箱");
 $("back").onclick = showList;
