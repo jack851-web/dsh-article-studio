@@ -39,6 +39,14 @@ select.theme{flex:1;min-width:0;padding:5px 8px;border:1px solid var(--rule);bor
 .toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:rgba(20,20,20,.9);color:#fff;padding:7px 12px;border-radius:999px;font-size:12px;pointer-events:none;opacity:0;transition:.15s}
 .toast.on{opacity:1}
 .hint{font-size:11px;color:var(--muted);padding:0 2px}
+.settings{flex:1;min-height:0;overflow:auto;padding:12px 14px;display:none;flex-direction:column;gap:10px}
+.settings.on{display:flex}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:11px;color:var(--muted)}
+.field input,.field select{padding:6px 8px;border:1px solid var(--rule);border-radius:6px;background:#fff;color:inherit;font:inherit;outline:none}
+.field .note{font-size:10.5px;color:var(--muted)}
+.settings .actions{margin-top:6px}
+#settingsPath{white-space:pre-line}
 </style>
 </head>
 <body>
@@ -46,6 +54,7 @@ select.theme{flex:1;min-width:0;padding:5px 8px;border:1px solid var(--rule);bor
   <button id="back" class="back" style="display:none">‹ 全部</button>
   <span class="t" id="title">文章</span>
   <span class="sp"></span>
+  <button id="settingsBtn">设置</button>
   <button id="refresh">刷新</button>
 </header>
 <div class="new" id="newbar">
@@ -65,6 +74,39 @@ select.theme{flex:1;min-width:0;padding:5px 8px;border:1px solid var(--rule);bor
     <div class="hint" id="state"></div>
   </div>
   <div class="stage"><div class="phone"><iframe id="preview" title="preview"></iframe></div></div>
+</div>
+<div class="settings" id="settingsView">
+  <div class="field">
+    <label>文章保存目录</label>
+    <input id="setRoot" placeholder="D:\\others\\article\\studio">
+    <span class="note">每篇文章一个子目录，内含 draft.md、images/ 与 out/</span>
+  </div>
+  <div class="field">
+    <label>最少配图张数（少于该值排版会被拦下）</label>
+    <input id="setMinImages" type="number" min="0" step="1">
+  </div>
+  <div class="field">
+    <label>默认主题</label>
+    <select id="setTheme"></select>
+  </div>
+  <div class="field">
+    <label>公众号 AppID</label>
+    <input id="setAppId" placeholder="wx…">
+  </div>
+  <div class="field">
+    <label>公众号 AppSecret</label>
+    <input id="setAppSecret" placeholder="已保存则显示 ******">
+    <span class="note">凭据写入 vendor/xiaohu/config.json（已被 .gitignore 排除），并需要在公众号后台把出口 IP 加入白名单</span>
+  </div>
+  <div class="field">
+    <label>作者署名</label>
+    <input id="setAuthor" placeholder="留空则用公众号默认">
+  </div>
+  <div class="actions">
+    <button id="saveSettings" class="primary">保存设置</button>
+    <button id="closeSettings">返回</button>
+  </div>
+  <div class="hint" id="settingsPath"></div>
 </div>
 <div class="toast" id="toast"></div>
 <script>
@@ -153,6 +195,7 @@ async function openArticle(id){
   const r = await rpc({ action: "get", id: id });
   if (!r || !r.ok) { toast("打开失败：" + ((r && r.error) || "")); return; }
   current = r.article;
+  $("settingsView").classList.remove("on");
   $("newbar").style.display = "none";
   $("rows").style.display = "none";
   $("detail").style.display = "flex";
@@ -165,6 +208,7 @@ async function openArticle(id){
 }
 function showList(){
   current = null;
+  $("settingsView").classList.remove("on");
   $("detail").style.display = "none";
   $("newbar").style.display = "";
   $("rows").style.display = "";
@@ -228,12 +272,51 @@ $("create").onclick = async () => {
     else toast("新建失败：" + ((r && r.error) || ""));
   } finally { setBusy(false); }
 };
+$("settingsBtn").onclick = async () => {
+  const r = await rpc({ action: "settings" });
+  if (!r || !r.ok) { toast("读取设置失败：" + ((r && r.error) || "")); return; }
+  $("setRoot").value = r.root || "";
+  $("setMinImages").value = r.minImages === undefined ? 3 : r.minImages;
+  $("setTheme").innerHTML = THEMES.map((t) => '<option value="' + t.id + '">' + t.name + " · " + t.id + "</option>").join("");
+  $("setTheme").value = r.defaultTheme || "newspaper";
+  $("setAppId").value = r.wechat.app_id || "";
+  $("setAppSecret").value = r.wechat.app_secret || "";
+  $("setAuthor").value = r.wechat.author || "";
+  $("settingsPath").textContent = "设置文件：" + (r.settingsPath || "") + "\n公众号配置：" + (r.configPath || "");
+  $("rows").style.display = "none";
+  $("newbar").style.display = "none";
+  $("detail").style.display = "none";
+  $("settingsView").classList.add("on");
+};
+$("closeSettings").onclick = () => {
+  $("settingsView").classList.remove("on");
+  if (current) openArticle(current.id);
+  else { $("newbar").style.display = ""; $("rows").style.display = ""; loadList(); }
+};
+$("saveSettings").onclick = async () => {
+  const r = await rpc({
+    action: "saveSettings",
+    root: $("setRoot").value.trim(),
+    minImages: Number($("setMinImages").value),
+    defaultTheme: $("setTheme").value,
+    wechat: {
+      app_id: $("setAppId").value.trim(),
+      app_secret: $("setAppSecret").value,
+      author: $("setAuthor").value.trim()
+    }
+  });
+  toast(r && r.ok ? "设置已保存" : "保存失败：" + ((r && r.error) || ""));
+  if (r && r.ok) loadList();
+};
 $("newtitle").addEventListener("keydown", (e) => { if (e.key === "Enter") $("create").click(); });
 $("theme").addEventListener("change", (e) => { if (e.target.value) applyTheme(e.target.value); });
-const deepArticle = new URLSearchParams(location.search).get("article");
+const params = new URLSearchParams(location.search);
+const deepArticle = params.get("article");
 checkHost();
 loadThemes().then(() => {
-  if (deepArticle) openArticle(deepArticle); else loadList();
+  if (deepArticle) openArticle(deepArticle);
+  else if (params.get("view") === "settings") $("settingsBtn").click();
+  else loadList();
 });
 </script>
 </body>
