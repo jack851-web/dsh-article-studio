@@ -2,119 +2,197 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<title>文章流水线</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>文章</title>
 <style>
-:root{--paper:#faf8f3;--ink:#171410;--muted:#8b8377;--rule:#e2dbcd;--red:#c4402b;--ok:#1f7a4d;--warn:#b45309}
-*{box-sizing:border-box}html,body{margin:0;height:100%}
-body{font:13px/1.55 "Segoe UI","PingFang SC","Microsoft YaHei",system-ui,sans-serif;background:var(--paper);color:var(--ink);display:flex;flex-direction:column}
-header{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--rule)}
-header h1{margin:0;font-size:14px;font-weight:650}
+:root{--ink:#171410;--muted:#8b8377;--rule:#e2dbcd;--paper:#faf8f3;--red:#c4402b}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font:13px/1.55 "Segoe UI","PingFang SC","Microsoft YaHei",system-ui,sans-serif;background:var(--paper);color:var(--ink);display:flex;flex-direction:column;overflow:hidden}
+header{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--rule);flex:none}
+header .t{font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 header .sp{flex:1}
-button{border:1px solid var(--rule);background:#fff;color:inherit;border-radius:7px;padding:6px 11px;font:inherit;cursor:pointer}
+button{border:1px solid var(--rule);background:#fff;color:inherit;border-radius:6px;padding:5px 10px;font:inherit;cursor:pointer}
 button:hover{background:#f1ede4}
 button.primary{background:var(--ink);border-color:var(--ink);color:var(--paper)}
 button[disabled]{opacity:.45;cursor:not-allowed}
-main{flex:1;display:flex;min-height:0}
-aside{width:260px;flex:none;border-right:1px solid var(--rule);overflow:auto;padding:6px}
+.back{border:0;background:transparent;color:var(--muted);padding:2px 0}
+.new{display:flex;gap:6px;padding:4px 12px 10px;flex:none}
+.new input{flex:1;min-width:0;padding:6px 8px;border-radius:6px;border:1px solid var(--rule);background:#fff;color:inherit;font:inherit;outline:none}
+.rows{flex:1;overflow:auto;padding:2px 8px 12px}
 .row{padding:9px 10px;border-radius:8px;cursor:pointer}
 .row:hover{background:#f1ede4}
-.row.on{background:#eef2fb}
-.row .t{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.row .m{color:var(--muted);font-size:11px;display:flex;gap:8px;margin-top:2px}
-section{flex:1;display:flex;flex-direction:column;min-width:0;padding:12px 16px;gap:10px}
-h2{margin:0;font-size:16px}
-.meta{color:var(--muted);font-size:11px;display:flex;gap:10px;flex-wrap:wrap}
-.rail{display:flex;border:1px solid var(--rule);border-radius:8px;overflow:hidden;background:#fff}
-.rail .cell{flex:1;text-align:center;padding:6px 2px;font-size:11px;color:var(--muted);border-right:1px solid var(--rule)}
-.rail .cell:last-child{border-right:0}
-.rail .cell.done{color:var(--ok);font-weight:600}
-.rail .cell.doing{color:var(--warn);font-weight:600}
-.rail .cell.blocked{color:var(--red);font-weight:600}
-.actions{display:flex;gap:8px;flex-wrap:wrap}
-iframe{flex:1;min-height:0;width:100%;border:1px solid var(--rule);border-radius:10px;background:#fff}
-.empty{flex:1;display:flex;align-items:center;justify-content:center;color:var(--muted)}
-.toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:rgba(20,20,20,.9);color:#fff;padding:7px 12px;border-radius:999px;font-size:12px;z-index:9;pointer-events:none}
+.row .rt{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .rm{color:var(--muted);font-size:11px;display:flex;gap:8px;margin-top:2px}
+.detail{flex:1;min-height:0;display:flex;flex-direction:column}
+.controls{padding:8px 12px 6px;display:flex;flex-direction:column;gap:8px;border-bottom:1px solid rgba(0,0,0,.06);flex:none}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid var(--rule);background:#fff;border-radius:999px;padding:4px 11px;font-size:11px}
+.chip.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.actions{display:flex;gap:6px;flex-wrap:wrap}
+.stage{flex:1;min-height:0;display:flex;justify-content:center;padding:10px 12px 12px;background:rgba(128,128,128,.05)}
+.phone{width:415px;max-width:100%;height:100%;border:1px solid rgba(0,0,0,.12);border-radius:14px;overflow:hidden;background:#fff;box-shadow:0 6px 20px rgba(0,0,0,.08)}
+.phone iframe{display:block;width:100%;height:100%;border:0;background:#fff}
+.empty{padding:30px 12px;text-align:center;color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:rgba(20,20,20,.9);color:#fff;padding:7px 12px;border-radius:999px;font-size:12px;pointer-events:none;opacity:0;transition:.15s}
+.toast.on{opacity:1}
+.hint{font-size:11px;color:var(--muted);padding:0 2px}
 </style>
 </head>
 <body>
 <header>
-  <h1>文章流水线</h1>
+  <button id="back" class="back" style="display:none">‹ 全部</button>
+  <span class="t" id="title">文章</span>
   <span class="sp"></span>
   <button id="refresh">刷新</button>
 </header>
-<main>
-  <aside id="list"></aside>
-  <section id="detail"><div class="empty">左侧选一篇文章</div></section>
-</main>
-<div class="toast" id="toast" style="display:none"></div>
+<div class="new" id="newbar">
+  <input id="newtitle" placeholder="新文章标题">
+  <button id="create" class="primary">新建</button>
+</div>
+<div class="rows" id="rows"></div>
+<div class="detail" id="detail" style="display:none">
+  <div class="controls">
+    <div class="chips" id="chips"></div>
+    <div class="actions">
+      <button id="apply" class="primary">应用排版</button>
+      <button id="dry">演练</button>
+      <button id="publish">推送草稿</button>
+    </div>
+    <div class="hint" id="state"></div>
+  </div>
+  <div class="stage"><div class="phone"><iframe id="preview" title="preview"></iframe></div></div>
+</div>
+<div class="toast" id="toast"></div>
 <script>
-const STAGES=[["brief","选题"],["outline","大纲"],["draft","正文"],["images","配图"],["format","排版"],["review","审校"],["publish","发布"]];
-const $=(id)=>document.getElementById(id);
-let articles=[],current=null,busy=false,tick=0;
+const THEMES = ["newspaper","bytedance","zen-minimal","washi-red","wechat-native","minimal"];
+const $ = (id) => document.getElementById(id);
+let current = null, busy = false, tick = 0;
 
-function toast(text){const t=$("toast");t.textContent=text;t.style.display="block";clearTimeout(t._h);t._h=setTimeout(()=>t.style.display="none",1900);}
-function labelOf(k){const f=STAGES.find(s=>s[0]===k);return f?f[1]:k;}
-function stageOf(a){for(const [k] of STAGES){if(!a.stages||(a.stages[k]||{}).status!=="done")return k;}return "publish";}
-async function rpc(body){const r=await fetch("/dsh-article-studio/rpc",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});return r.json();}
-
-async function refresh(){
-  const r=await rpc({action:"list"});
-  if(r&&r.ok){articles=r.articles||[];renderList();}
+function toast(text){
+  const t = $("toast");
+  t.textContent = text;
+  t.classList.add("on");
+  clearTimeout(t._h);
+  t._h = setTimeout(() => t.classList.remove("on"), 2200);
 }
-function renderList(){
-  const box=$("list");box.innerHTML="";
-  if(!articles.length){box.innerHTML='<div class="meta" style="padding:12px">还没有文章</div>';return;}
-  for(const a of articles){
-    const el=document.createElement("div");
-    el.className="row"+(current&&current.id===a.id?" on":"");
-    el.innerHTML='<div class="t"></div><div class="m"><span></span><span></span></div>';
-    el.querySelector(".t").textContent=a.title||a.id;
-    el.querySelectorAll(".m span")[0].textContent=labelOf(stageOf(a));
-    el.querySelectorAll(".m span")[1].textContent=String(a.updatedAt||"").replace("T"," ");
-    el.onclick=()=>select(a.id);
-    box.appendChild(el);
+async function rpc(body){
+  try {
+    const res = await fetch("/dsh-article-studio/rpc", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body)
+    });
+    return await res.json();
+  } catch (error) {
+    return { ok: false, error: String(error && error.message || error) };
   }
 }
-async function select(id){
-  const r=await rpc({action:"get",id});
-  if(r&&r.ok){current=r.article;renderDetail();}
+function setBusy(v){
+  busy = v;
+  ["apply","dry","publish","create"].forEach((id) => { $(id).disabled = v; });
+  document.querySelectorAll(".chip").forEach((c) => { c.disabled = v; });
 }
-function renderDetail(){
-  if(!current)return;
-  const d=$("detail");d.innerHTML="";
-  const stage=stageOf(current);
-  const h=document.createElement("h2");h.textContent=current.title;d.appendChild(h);
-  const meta=document.createElement("div");meta.className="meta";
-  meta.innerHTML=`<span>当前：${labelOf(stage)}</span><span>主题：${current.theme||"newspaper"}</span><span>更新：${String(current.updatedAt||"").replace("T"," ")}</span>`;
-  d.appendChild(meta);
-  const rail=document.createElement("div");rail.className="rail";
-  for(const [k,l] of STAGES){
-    const s=(current.stages&&current.stages[k]||{}).status||"todo";
-    const c=document.createElement("div");c.className="cell "+s;c.textContent=l+(s==="done"?" ✓":"");c.title=(current.stages&&current.stages[k]||{}).note||"";rail.appendChild(c);
+function previewUrl(){ return "/dsh-article-studio/preview/" + encodeURIComponent(current.id) + "?t=" + (++tick); }
+
+function renderChips(){
+  const box = $("chips");
+  box.innerHTML = "";
+  THEMES.forEach((name) => {
+    const b = document.createElement("button");
+    b.className = "chip" + (current.theme === name ? " on" : "");
+    b.textContent = name;
+    b.onclick = () => applyTheme(name);
+    box.appendChild(b);
+  });
+}
+function renderRows(list){
+  const box = $("rows");
+  box.innerHTML = "";
+  if (!list.length) { box.innerHTML = '<div class="empty">还没有文章，先在上面新建一篇。</div>'; return; }
+  list.forEach((a) => {
+    const row = document.createElement("div");
+    row.className = "row";
+    row.innerHTML = '<div class="rt"></div><div class="rm"><span></span><span></span></div>';
+    row.querySelector(".rt").textContent = a.title || a.id;
+    row.querySelectorAll(".rm span")[0].textContent = String(a.updatedAt || "").replace("T"," ");
+    row.querySelectorAll(".rm span")[1].textContent = "第 " + (a.draftVersion || 0) + " 稿";
+    row.onclick = () => openArticle(a.id);
+    box.appendChild(row);
+  });
+}
+async function loadList(){
+  const r = await rpc({ action: "list" });
+  if (!r || !r.ok) { toast("读取失败：" + ((r && r.error) || "")); return; }
+  renderRows(r.articles || []);
+}
+async function openArticle(id){
+  const r = await rpc({ action: "get", id: id });
+  if (!r || !r.ok) { toast("打开失败：" + ((r && r.error) || "")); return; }
+  current = r.article;
+  $("newbar").style.display = "none";
+  $("rows").style.display = "none";
+  $("detail").style.display = "flex";
+  $("back").style.display = "";
+  $("title").textContent = current.title || current.id;
+  $("state").textContent = "第 " + (current.draftVersion || 0) + " 稿 · " + (current.theme || "");
+  renderChips();
+  $("preview").src = previewUrl();
+}
+function showList(){
+  current = null;
+  $("detail").style.display = "none";
+  $("newbar").style.display = "";
+  $("rows").style.display = "";
+  $("back").style.display = "none";
+  $("title").textContent = "文章";
+  loadList();
+}
+async function applyTheme(name){
+  if (!current || busy) return;
+  setBusy(true);
+  try {
+    const t = await rpc({ action: "theme", id: current.id, theme: name });
+    if (!t || !t.ok) { toast("切换失败：" + ((t && t.error) || "")); return; }
+    current.theme = name;
+    renderChips();
+    $("state").textContent = "第 " + (current.draftVersion || 0) + " 稿 · " + name;
+    const f = await rpc({ action: "format", id: current.id, theme: name });
+    if (!f || !f.ok) { toast("排版失败：" + ((f && f.error) || "")); return; }
+    $("preview").src = previewUrl();
+    toast("已切换风格：" + name);
+  } finally {
+    setBusy(false);
   }
-  d.appendChild(rail);
-  const acts=document.createElement("div");acts.className="actions";
-  const mk=(text,cls,fn)=>{const b=document.createElement("button");b.textContent=text;if(cls)b.className=cls;b.disabled=busy;b.onclick=fn;acts.appendChild(b);};
-  mk("排版","primary",()=>act({action:"format",id:current.id,theme:current.theme},"排版完成"));
-  mk("审校通过","",()=>act({action:"set",id:current.id,stage:"review",status:"done"},"已通过审校"));
-  mk("演练","",()=>act({action:"publish",id:current.id,dryRun:true},"演练完成"));
-  mk("推送草稿","",()=>act({action:"publish",id:current.id,dryRun:false},"已推送草稿箱"));
-  mk("刷新预览","",()=>{tick++;renderDetail();});
-  d.appendChild(acts);
-  const f=document.createElement("iframe");
-  f.src="/dsh-article-studio/preview/"+encodeURIComponent(current.id)+"?t="+tick;
-  d.appendChild(f);
 }
-async function act(body,okText){
-  busy=true;renderDetail();
-  const r=await rpc(body);
-  busy=false;
-  toast(r&&r.ok?okText:"失败："+((r&&r.error)||"未知错误"));
-  if(r&&r.ok){await refresh();if(body.id)await select(body.id);}else{renderDetail();}
+async function runAction(body, okText){
+  if (!current || busy) return;
+  setBusy(true);
+  try {
+    const r = await rpc(body);
+    toast(r && r.ok ? okText : "失败：" + ((r && r.error) || "未知错误"));
+    if (r && r.ok && body.action === "format") $("preview").src = previewUrl();
+  } finally {
+    setBusy(false);
+  }
 }
-$("refresh").onclick=refresh;
-refresh();
-setInterval(refresh,6000);
+$("apply").onclick = () => runAction({ action: "format", id: current.id, theme: current.theme }, "已更新预览");
+$("dry").onclick = () => runAction({ action: "publish", id: current.id, dryRun: true }, "演练完成");
+$("publish").onclick = () => runAction({ action: "publish", id: current.id, dryRun: false }, "已推送草稿箱");
+$("back").onclick = showList;
+$("refresh").onclick = () => { if (current) openArticle(current.id); else loadList(); };
+$("create").onclick = async () => {
+  const title = $("newtitle").value.trim();
+  if (!title) { toast("先写个标题"); return; }
+  setBusy(true);
+  try {
+    const r = await rpc({ action: "create", title });
+    if (r && r.ok) { $("newtitle").value = ""; toast("已新建：" + title); await loadList(); await openArticle(r.id); }
+    else toast("新建失败：" + ((r && r.error) || ""));
+  } finally { setBusy(false); }
+};
+$("newtitle").addEventListener("keydown", (e) => { if (e.key === "Enter") $("create").click(); });
+loadList();
 </script>
 </body>
 </html>
