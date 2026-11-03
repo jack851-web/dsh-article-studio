@@ -26,9 +26,11 @@ button[disabled]{opacity:.45;cursor:not-allowed}
 .row .rm{color:var(--muted);font-size:11px;display:flex;gap:8px;margin-top:2px}
 .detail{flex:1;min-height:0;display:flex;flex-direction:column}
 .controls{padding:8px 12px 6px;display:flex;flex-direction:column;gap:8px;border-bottom:1px solid rgba(0,0,0,.06);flex:none}
-.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .chip{border:1px solid var(--rule);background:#fff;border-radius:999px;padding:4px 11px;font-size:11px}
 .chip.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+select.theme{flex:1;min-width:0;padding:5px 8px;border:1px solid var(--rule);border-radius:6px;background:#fff;color:inherit;font:inherit;outline:none}
+.warn{color:var(--red);font-size:11px;padding:4px 12px 8px}
 .actions{display:flex;gap:6px;flex-wrap:wrap}
 .stage{flex:1;min-height:0;display:flex;justify-content:center;padding:10px 12px 12px;background:rgba(128,128,128,.05)}
 .phone{width:415px;max-width:100%;height:100%;border:1px solid rgba(0,0,0,.12);border-radius:14px;overflow:hidden;background:#fff;box-shadow:0 6px 20px rgba(0,0,0,.08)}
@@ -53,7 +55,7 @@ button[disabled]{opacity:.45;cursor:not-allowed}
 <div class="rows" id="rows"></div>
 <div class="detail" id="detail" style="display:none">
   <div class="controls">
-    <div class="chips" id="chips"></div>
+    <div class="chips"><select id="theme" class="theme" title="排版风格（来自 xiaohu-wechat-format 的 85 套主题）"></select></div>
     <div class="actions">
       <button id="apply" class="primary">应用排版</button>
       <button id="dry">演练</button>
@@ -65,9 +67,24 @@ button[disabled]{opacity:.45;cursor:not-allowed}
 </div>
 <div class="toast" id="toast"></div>
 <script>
-const THEMES = ["newspaper","bytedance","zen-minimal","washi-red","wechat-native","minimal"];
+let THEMES = [];
 const $ = (id) => document.getElementById(id);
 let current = null, busy = false, tick = 0;
+
+async function loadThemes(){
+  const r = await rpc({ action: "themes" });
+  THEMES = (r && r.ok && r.themes) || [];
+  renderThemes();
+}
+async function checkHost(){
+  const cap = await rpc({ action: "capabilities" });
+  if (!cap || !cap.ok || (cap.actions || []).indexOf("theme") < 0) {
+    $("state").style.color = "#c4402b";
+    $("state").textContent = "宿主仍是旧版本：请完全退出 DSH 后重新打开（当前进程没有加载新动作）";
+    return false;
+  }
+  return true;
+}
 
 function toast(text){
   const t = $("toast");
@@ -90,21 +107,26 @@ async function rpc(body){
 }
 function setBusy(v){
   busy = v;
-  ["apply","dry","publish","create"].forEach((id) => { $(id).disabled = v; });
-  document.querySelectorAll(".chip").forEach((c) => { c.disabled = v; });
+  ["apply","dry","publish","create","theme"].forEach((id) => { $(id).disabled = v; });
 }
 function previewUrl(){ return "/dsh-article-studio/preview/" + encodeURIComponent(current.id) + "?t=" + (++tick); }
 
-function renderChips(){
-  const box = $("chips");
-  box.innerHTML = "";
-  THEMES.forEach((name) => {
-    const b = document.createElement("button");
-    b.className = "chip" + (current.theme === name ? " on" : "");
-    b.textContent = name;
-    b.onclick = () => applyTheme(name);
-    box.appendChild(b);
+function renderThemes(){
+  const sel = $("theme");
+  sel.innerHTML = "";
+  if (!THEMES.length) {
+    const o = document.createElement("option");
+    o.value = ""; o.textContent = "（主题列表未加载）";
+    sel.appendChild(o);
+    return;
+  }
+  THEMES.forEach((theme) => {
+    const o = document.createElement("option");
+    o.value = theme.id;
+    o.textContent = theme.name && theme.name !== theme.id ? theme.name + " · " + theme.id : theme.id;
+    sel.appendChild(o);
   });
+  if (current && current.theme) sel.value = current.theme;
 }
 function renderRows(list){
   const box = $("rows");
@@ -136,7 +158,7 @@ async function openArticle(id){
   $("back").style.display = "";
   $("title").textContent = current.title || current.id;
   $("state").textContent = "第 " + (current.draftVersion || 0) + " 稿 · " + (current.theme || "");
-  renderChips();
+  renderThemes();
   $("preview").src = previewUrl();
 }
 function showList(){
@@ -155,7 +177,7 @@ async function applyTheme(name){
     const t = await rpc({ action: "theme", id: current.id, theme: name });
     if (!t || !t.ok) { toast("切换失败：" + ((t && t.error) || "")); return; }
     current.theme = name;
-    renderChips();
+    renderThemes();
     $("state").textContent = "第 " + (current.draftVersion || 0) + " 稿 · " + name;
     const f = await rpc({ action: "format", id: current.id, theme: name });
     if (!f || !f.ok) { toast("排版失败：" + ((f && f.error) || "")); return; }
@@ -192,7 +214,12 @@ $("create").onclick = async () => {
   } finally { setBusy(false); }
 };
 $("newtitle").addEventListener("keydown", (e) => { if (e.key === "Enter") $("create").click(); });
-loadList();
+$("theme").addEventListener("change", (e) => { if (e.target.value) applyTheme(e.target.value); });
+const deepArticle = new URLSearchParams(location.search).get("article");
+checkHost();
+loadThemes().then(() => {
+  if (deepArticle) openArticle(deepArticle); else loadList();
+});
 </script>
 </body>
 </html>
