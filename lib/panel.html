@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>文章流水线</title>
+<style>
+:root{--paper:#faf8f3;--ink:#171410;--muted:#8b8377;--rule:#e2dbcd;--red:#c4402b;--ok:#1f7a4d;--warn:#b45309}
+*{box-sizing:border-box}html,body{margin:0;height:100%}
+body{font:13px/1.55 "Segoe UI","PingFang SC","Microsoft YaHei",system-ui,sans-serif;background:var(--paper);color:var(--ink);display:flex;flex-direction:column}
+header{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--rule)}
+header h1{margin:0;font-size:14px;font-weight:650}
+header .sp{flex:1}
+button{border:1px solid var(--rule);background:#fff;color:inherit;border-radius:7px;padding:6px 11px;font:inherit;cursor:pointer}
+button:hover{background:#f1ede4}
+button.primary{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+button[disabled]{opacity:.45;cursor:not-allowed}
+main{flex:1;display:flex;min-height:0}
+aside{width:260px;flex:none;border-right:1px solid var(--rule);overflow:auto;padding:6px}
+.row{padding:9px 10px;border-radius:8px;cursor:pointer}
+.row:hover{background:#f1ede4}
+.row.on{background:#eef2fb}
+.row .t{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .m{color:var(--muted);font-size:11px;display:flex;gap:8px;margin-top:2px}
+section{flex:1;display:flex;flex-direction:column;min-width:0;padding:12px 16px;gap:10px}
+h2{margin:0;font-size:16px}
+.meta{color:var(--muted);font-size:11px;display:flex;gap:10px;flex-wrap:wrap}
+.rail{display:flex;border:1px solid var(--rule);border-radius:8px;overflow:hidden;background:#fff}
+.rail .cell{flex:1;text-align:center;padding:6px 2px;font-size:11px;color:var(--muted);border-right:1px solid var(--rule)}
+.rail .cell:last-child{border-right:0}
+.rail .cell.done{color:var(--ok);font-weight:600}
+.rail .cell.doing{color:var(--warn);font-weight:600}
+.rail .cell.blocked{color:var(--red);font-weight:600}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+iframe{flex:1;min-height:0;width:100%;border:1px solid var(--rule);border-radius:10px;background:#fff}
+.empty{flex:1;display:flex;align-items:center;justify-content:center;color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:rgba(20,20,20,.9);color:#fff;padding:7px 12px;border-radius:999px;font-size:12px;z-index:9;pointer-events:none}
+</style>
+</head>
+<body>
+<header>
+  <h1>文章流水线</h1>
+  <span class="sp"></span>
+  <button id="refresh">刷新</button>
+</header>
+<main>
+  <aside id="list"></aside>
+  <section id="detail"><div class="empty">左侧选一篇文章</div></section>
+</main>
+<div class="toast" id="toast" style="display:none"></div>
+<script>
+const STAGES=[["brief","选题"],["outline","大纲"],["draft","正文"],["images","配图"],["format","排版"],["review","审校"],["publish","发布"]];
+const $=(id)=>document.getElementById(id);
+let articles=[],current=null,busy=false,tick=0;
+
+function toast(text){const t=$("toast");t.textContent=text;t.style.display="block";clearTimeout(t._h);t._h=setTimeout(()=>t.style.display="none",1900);}
+function labelOf(k){const f=STAGES.find(s=>s[0]===k);return f?f[1]:k;}
+function stageOf(a){for(const [k] of STAGES){if(!a.stages||(a.stages[k]||{}).status!=="done")return k;}return "publish";}
+async function rpc(body){const r=await fetch("/dsh-article-studio/rpc",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});return r.json();}
+
+async function refresh(){
+  const r=await rpc({action:"list"});
+  if(r&&r.ok){articles=r.articles||[];renderList();}
+}
+function renderList(){
+  const box=$("list");box.innerHTML="";
+  if(!articles.length){box.innerHTML='<div class="meta" style="padding:12px">还没有文章</div>';return;}
+  for(const a of articles){
+    const el=document.createElement("div");
+    el.className="row"+(current&&current.id===a.id?" on":"");
+    el.innerHTML='<div class="t"></div><div class="m"><span></span><span></span></div>';
+    el.querySelector(".t").textContent=a.title||a.id;
+    el.querySelectorAll(".m span")[0].textContent=labelOf(stageOf(a));
+    el.querySelectorAll(".m span")[1].textContent=String(a.updatedAt||"").replace("T"," ");
+    el.onclick=()=>select(a.id);
+    box.appendChild(el);
+  }
+}
+async function select(id){
+  const r=await rpc({action:"get",id});
+  if(r&&r.ok){current=r.article;renderDetail();}
+}
+function renderDetail(){
+  if(!current)return;
+  const d=$("detail");d.innerHTML="";
+  const stage=stageOf(current);
+  const h=document.createElement("h2");h.textContent=current.title;d.appendChild(h);
+  const meta=document.createElement("div");meta.className="meta";
+  meta.innerHTML=`<span>当前：${labelOf(stage)}</span><span>主题：${current.theme||"newspaper"}</span><span>更新：${String(current.updatedAt||"").replace("T"," ")}</span>`;
+  d.appendChild(meta);
+  const rail=document.createElement("div");rail.className="rail";
+  for(const [k,l] of STAGES){
+    const s=(current.stages&&current.stages[k]||{}).status||"todo";
+    const c=document.createElement("div");c.className="cell "+s;c.textContent=l+(s==="done"?" ✓":"");c.title=(current.stages&&current.stages[k]||{}).note||"";rail.appendChild(c);
+  }
+  d.appendChild(rail);
+  const acts=document.createElement("div");acts.className="actions";
+  const mk=(text,cls,fn)=>{const b=document.createElement("button");b.textContent=text;if(cls)b.className=cls;b.disabled=busy;b.onclick=fn;acts.appendChild(b);};
+  mk("排版","primary",()=>act({action:"format",id:current.id,theme:current.theme},"排版完成"));
+  mk("审校通过","",()=>act({action:"set",id:current.id,stage:"review",status:"done"},"已通过审校"));
+  mk("演练","",()=>act({action:"publish",id:current.id,dryRun:true},"演练完成"));
+  mk("推送草稿","",()=>act({action:"publish",id:current.id,dryRun:false},"已推送草稿箱"));
+  mk("刷新预览","",()=>{tick++;renderDetail();});
+  d.appendChild(acts);
+  const f=document.createElement("iframe");
+  f.src="/dsh-article-studio/preview/"+encodeURIComponent(current.id)+"?t="+tick;
+  d.appendChild(f);
+}
+async function act(body,okText){
+  busy=true;renderDetail();
+  const r=await rpc(body);
+  busy=false;
+  toast(r&&r.ok?okText:"失败："+((r&&r.error)||"未知错误"));
+  if(r&&r.ok){await refresh();if(body.id)await select(body.id);}else{renderDetail();}
+}
+$("refresh").onclick=refresh;
+refresh();
+setInterval(refresh,6000);
+</script>
+</body>
+</html>
