@@ -21,7 +21,9 @@ DeepSeek Harness 侧栏的**文章流水线**：写作 → 配图 → 排版 →
 powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
-然后**完全退出并重启 DSH**。重启后右下角出现「文章」按钮，点开即侧栏 tab。
+然后**完全退出并重启 DSH**。
+
+打开方式：在 DSH 右侧的「文件」面板里点开工作区的 `文章流水线.astudio`，插件会把面板作为**右侧文档 tab** 打开，聊天区不受影响。该文件只是入口标记，数据仍在 `D:\others\article\studio`。
 
 卸载：`uninstall.ps1`。
 
