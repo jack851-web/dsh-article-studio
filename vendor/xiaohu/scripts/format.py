@@ -2158,6 +2158,32 @@ def _wrap_hero_sections(html: str, hero_cfg: dict) -> str:
     return ''.join(sections)
 
 
+def _house_banner(theme: dict) -> str:
+    """首尾关注横幅：不带底色，只用主题强调色，融入文章背景。"""
+    styles = theme.get("styles", {})
+    accent = str((theme.get("colors") or {}).get("accent") or "#6366f1")
+    # 横幅位于主题容器之外，底就是微信正文的白底：文字固定深灰，
+    # 药丸字色按强调色的明度决定，避免浅色强调色配白字看不清。
+    accent_hex = accent.lstrip("#")
+    pill_text = "#ffffff"
+    if len(accent_hex) == 6:
+        try:
+            red, green, blue = (int(accent_hex[i:i + 2], 16) for i in (0, 2, 4))
+            if (0.2126 * red + 0.7152 * green + 0.0722 * blue) > 150:
+                pill_text = "#1a1a17"
+        except ValueError:
+            pass
+    return (
+        '<section style="margin:0 0 20px;padding:10px 0 8px;display:flex;align-items:center;'
+        'gap:10px;font-size:13px;line-height:1.6;">'
+        '<span style="color:rgba(0,0,0,0.45);letter-spacing:0.02em;">点击关注，了解更多具身动态</span>'
+        f'<span style="display:inline-block;padding:2px 12px;border-radius:999px;background:{accent};'
+        f'color:{pill_text};font-size:12px;line-height:1.7;">AOZ-Robot</span>'
+        '<span style="flex:1;height:1px;background:rgba(0,0,0,0.14);"></span>'
+        "</section>"
+    )
+
+
 def _hero_panel_colors(hero_cfg: dict):
     """Hero 首屏/尾屏的底色与字色。
 
@@ -2944,6 +2970,8 @@ def main():
                         help="AI 语义增强：自动分析文章并添加排版标记（需 config.json 配置 smart_api）")
     parser.add_argument("--drop-title", action="store_true",
                         help="丢掉文档第一行的 # 标题（公众号已有标题，正文不再重复）")
+    parser.add_argument("--banner", action="store_true",
+                        help="正文首尾加关注横幅（HTML，底色跟随主题）")
     parser.add_argument("--font-size", type=int, default=None,
                         help="正文字号（默认15px），如 --font-size 16")
     args = parser.parse_args()
@@ -3113,6 +3141,11 @@ def main():
         html = _apply_font_size(html, args.font_size)
         if footnote_html:
             footnote_html = _apply_font_size(footnote_html, args.font_size)
+
+    # 首尾横幅：纯 HTML/CSS，底色跟随正文，不叠加图片背景
+    if args.banner:
+        banner = _house_banner(theme)
+        html = banner + "\n" + html + "\n" + banner
 
     # 保存纯文章 HTML（hero 布局走统一占位符替换）
     if theme.get("layout") == "hero":
