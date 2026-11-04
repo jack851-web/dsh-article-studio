@@ -195,10 +195,16 @@ def theme_is_dark(data: dict) -> bool:
     return False
 
 
+# Themes kept exactly as the upstream catalogue shipped them.
+KEEP_ORIGINAL = {"bauhaus"}
+
+
 def main() -> int:
     files = sorted(THEMES.glob("*.json"))
     total = 0
     for path in files:
+        if path.stem in KEEP_ORIGINAL:
+            continue
         data = json.loads(path.read_text(encoding="utf-8"))
         base_dark = theme_is_dark(data)
         styles = data.get("styles")

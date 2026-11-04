@@ -20,7 +20,10 @@
     "alt_bg": "#fafafa",
     "text_color": "#333333",
     "heading_color": "#1a1a1a",
-    "number_color": "rgba(99,102,241,0.12)"
+    "number_color": "rgba(99,102,241,0.12)",
+    "panel_bg": "#ffffff",
+    "panel_text": "#1a1a1a",
+    "panel_muted": "#565666"
   },
   "styles": {
     "wrapper": {

@@ -1920,6 +1920,7 @@ def _wrap_hero_sections(html: str, hero_cfg: dict) -> str:
     accent_bg = hero_cfg.get("accent_bg", "#f8f7ff")
     accent_border = hero_cfg.get("accent_border", "#e0e7ff")
     dark_bg = hero_cfg.get("dark_bg", "#1a1a2e")
+    panel_bg, panel_title, panel_body, panel_kicker = _hero_panel_colors(hero_cfg)
     alt_bg = hero_cfg.get("alt_bg", "#fafafa")
     text_color = hero_cfg.get("text_color", "#333333")
     heading_color = hero_cfg.get("heading_color", "#1a1a1a")
@@ -1983,17 +1984,17 @@ def _wrap_hero_sections(html: str, hero_cfg: dict) -> str:
                         subtitle = sub_html
 
                 kicker_line = (
-                    f'<p style="font-size:12px;color:rgba(255,255,255,0.5);margin:0 0 16px;letter-spacing:2px;">{HEADER_AUTHOR} · 深度解读</p>'
+                    f'<p style="font-size:12px;color:{panel_kicker};margin:0 0 16px;letter-spacing:2px;">{HEADER_AUTHOR} · 深度解读</p>'
                     if HEADER_AUTHOR else ''
                 )
                 hero = (
-                    f'<section style="padding:40px 28px 32px;background:{dark_bg};color:#ffffff;">'
+                    f'<section style="padding:{_hero_panel_padding(hero_cfg)};background:{panel_bg};color:{panel_title};">'
                     f'{kicker_line}'
-                    f'<h1 style="font-size:24px;font-weight:800;color:#ffffff;margin:0 0 20px;line-height:1.35;letter-spacing:-0.3px;">{title_text}</h1>'
+                    f'<h1 style="font-size:24px;font-weight:800;color:{panel_title};margin:0 0 20px;line-height:1.35;letter-spacing:-0.3px;">{title_text}</h1>'
                     f'<div style="width:40px;height:3px;background:{accent};border-radius:2px;margin:0 0 20px;"></div>'
                 )
                 if subtitle:
-                    hero += f'<p style="font-size:15px;color:rgba(255,255,255,0.75);line-height:1.7;margin:0;">{subtitle}</p>'
+                    hero += f'<p style="font-size:15px;color:{panel_body};line-height:1.7;margin:0;">{subtitle}</p>'
                 hero += '</section>'
                 sections.append(hero)
 
@@ -2157,12 +2158,43 @@ def _wrap_hero_sections(html: str, hero_cfg: dict) -> str:
     return ''.join(sections)
 
 
+def _hero_panel_colors(hero_cfg: dict):
+    """Hero 首屏/尾屏的底色与字色。
+
+    `panel_bg` 让主题可以把这个面板改成浅色；面板是浅色时，标题与正文自动
+    换成墨色，避免出现"浅底白字"。
+    """
+    bg = hero_cfg.get("panel_bg") or hero_cfg.get("dark_bg", "#1a1a2e")
+    explicit = hero_cfg.get("panel_text")
+    match = re.match(r"#([0-9a-fA-F]{6})\b", str(bg).strip())
+    light = True
+    if match:
+        digits = match.group(1)
+        red, green, blue = (int(digits[i:i + 2], 16) / 255 for i in (0, 2, 4))
+        light = (0.2126 * red + 0.7152 * green + 0.0722 * blue) > 0.5
+    title = explicit or ("#1a1a1a" if light else "#ffffff")
+    body = hero_cfg.get("panel_muted") or ("rgba(0,0,0,0.62)" if light else "rgba(255,255,255,0.75)")
+    kicker = "rgba(0,0,0,0.42)" if light else "rgba(255,255,255,0.5)"
+    return bg, title, body, kicker
+
+
+def _hero_panel_padding(hero_cfg: dict) -> str:
+    """浅色首屏不画色块，收掉面板内边距，读起来就是正常的文章开头。"""
+    bg = hero_cfg.get("panel_bg") or hero_cfg.get("dark_bg", "#1a1a2e")
+    match = re.match(r"#([0-9a-fA-F]{6})\b", str(bg).strip())
+    if not match:
+        return "40px 28px 32px"
+    digits = match.group(1)
+    red, green, blue = (int(digits[i:i + 2], 16) / 255 for i in (0, 2, 4))
+    return "26px 0 12px" if (0.2126 * red + 0.7152 * green + 0.0722 * blue) > 0.5 else "40px 28px 32px"
+
+
 def _build_hero_footer(hero_cfg: dict) -> str:
-    """构建 hero 布局的暗色结尾 section。"""
-    dark_bg = hero_cfg.get("dark_bg", "#1a1a2e")
+    """构建 hero 布局的结尾 section。"""
+    panel_bg, _title, _body, kicker = _hero_panel_colors(hero_cfg)
     return (
-        f'<section style="padding:40px 28px;background:{dark_bg};">'
-        f'<p style="font-size:13px;color:rgba(255,255,255,0.4);text-align:center;margin:0;">— END —</p>'
+        f'<section style="padding:40px 28px;background:{panel_bg};">'
+        f'<p style="font-size:13px;color:{kicker};text-align:center;margin:0;">— END —</p>'
         f'</section>'
     )
 
