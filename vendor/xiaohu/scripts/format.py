@@ -2175,11 +2175,17 @@ def _house_banner(theme: dict) -> str:
             pass
     return (
         '<section style="margin:0 0 20px;padding:10px 0 8px;display:flex;align-items:center;'
-        'gap:10px;font-size:13px;line-height:1.6;">'
-        '<span style="color:rgba(0,0,0,0.45);letter-spacing:0.02em;">点击关注，了解更多具身动态</span>'
-        f'<span style="display:inline-block;padding:2px 12px;border-radius:999px;background:{accent};'
-        f'color:{pill_text};font-size:12px;line-height:1.7;">AOZ-Robot</span>'
-        '<span style="flex:1;height:1px;background:rgba(0,0,0,0.14);"></span>'
+        'gap:9px;font-size:12px;line-height:1.6;white-space:nowrap;">'
+        '<span style="color:rgba(0,0,0,0.45);letter-spacing:0.02em;white-space:nowrap;">点击关注，了解更多具身动态</span>'
+        f'<span style="display:inline-block;padding:2px 11px;border-radius:999px;background:{accent};'
+        f'color:{pill_text};font-size:11.5px;line-height:1.7;white-space:nowrap;">AOZ-Robot</span>'
+        # 心电图：内联 SVG，随强调色，底色透明
+        '<span style="display:inline-block;width:96px;height:12px;flex:none;">'
+        '<svg xmlns="http://www.w3.org/2000/svg" width="96" height="12" viewBox="0 0 96 12" '
+        'style="display:block;width:96px;height:12px;">'
+        f'<polyline points="0,6 28,6 34,1 40,11 46,3 52,6 96,6" fill="none" stroke="{accent}" '
+        'stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>'
+        "</svg></span>"
         "</section>"
     )
 

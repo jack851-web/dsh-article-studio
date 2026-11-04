@@ -189,6 +189,7 @@ button[disabled]{opacity:.4;cursor:not-allowed}
       <input id="sourceUrl" placeholder="粘贴公众号文章链接 mp.weixin.qq.com/s/…（导入正文和图片）">
       <button id="importSource" class="mini primary">导入</button>
       <button id="pasteToggle" class="link">粘贴导入</button>
+      <button id="fillImages" class="link">补齐配图</button>
     </div>
     <div class="paste-box" id="pasteBox">
       <textarea id="pasteHtml" placeholder="在浏览器里打开文章，Ctrl+A 全选复制后粘贴到这里；也可以直接粘贴网页源码。微信对非客户端请求返回空壳，链接抓不到时用这个。"></textarea>
@@ -647,6 +648,18 @@ $("searchSources").onclick = async () => {
     });
     if (!(r.items || []).length) box.textContent = "没有结果";
     toast("找到 " + (r.items || []).length + " 条，点标题填入链接");
+  } finally {
+    setBusy(false);
+  }
+};
+$("fillImages").onclick = async () => {
+  if (!current || busy) return;
+  setBusy(true);
+  try {
+    const r = await rpc({ action: "fillImages", id: current.id });
+    if (!r || !r.ok) { toast("补齐失败：" + ((r && r.error) || "")); return; }
+    toast("已补齐 " + r.added + " 张配图");
+    await openArticle(current.id);
   } finally {
     setBusy(false);
   }
