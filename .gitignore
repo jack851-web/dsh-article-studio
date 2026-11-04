@@ -6,3 +6,5 @@ vendor/xiaohu/config.json
 package.json.bak-*
 .DS_Store
 Thumbs.db
+
+__pycache__/
