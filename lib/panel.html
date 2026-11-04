@@ -25,6 +25,8 @@ body{font:13px/1.55 var(--sans);background:var(--paper);color:var(--ink);display
 button{font:inherit;color:inherit;cursor:pointer}
 .ghost{border:1px solid transparent;background:transparent;color:var(--muted);padding:3px 7px;font-size:11.5px;border-radius:2px}
 .ghost:hover{color:var(--ink);border-color:var(--line);background:#fff}
+.ghost.danger{color:var(--red)}
+.ghost.danger.confirming{background:var(--red);border-color:var(--red);color:#fff}
 .back{border:0;background:transparent;color:var(--muted);padding:2px 0;font-size:12px}
 .back:hover{color:var(--ink)}
 .primary{background:var(--ink);color:var(--paper);border:1px solid var(--ink);padding:6px 13px;border-radius:2px;font-weight:600}
@@ -144,6 +146,7 @@ button[disabled]{opacity:.4;cursor:not-allowed}
   <span class="mark">文</span>
   <span class="t" id="title">文章</span>
   <span class="sp"></span>
+  <button id="deleteArticle" class="ghost danger" style="display:none">删除</button>
   <button id="refresh" class="ghost">刷新</button>
   <button id="settingsBtn" class="ghost">设置</button>
 </header>
@@ -505,6 +508,7 @@ async function openArticle(id){
   $("groupbar").style.display = "none";
   $("rows").style.display = "none";
   $("back").style.display = "";
+  $("deleteArticle").style.display = "";
   const r = await rpc({ action: "get", id: id });
   if (!r || !r.ok) { toast("打开失败：" + ((r && r.error) || "")); $("title").textContent = "打开失败"; return; }
   current = r.article;
@@ -601,8 +605,18 @@ function showList(){
   $("groupbar").style.display = "";
   $("rows").style.display = "";
   $("back").style.display = "none";
+  $("deleteArticle").style.display = "none";
+  resetDeleteButton();
   $("title").textContent = "文章";
   loadList();
+}
+
+function resetDeleteButton(){
+  const button = $("deleteArticle");
+  if (!button) return;
+  button.classList.remove("confirming");
+  button.textContent = "删除";
+  clearTimeout(button._timer);
 }
 async function applyTheme(name){
   if (!current || busy) return;
@@ -640,6 +654,28 @@ $("fAuthor").onchange = () => saveMeta("author", $("fAuthor").value.trim());
 $("fGroup").onchange = () => saveMeta("group", $("fGroup").value.trim());
 $("fCover").onchange = () => saveMeta("cover", $("fCover").value);
 $("publish").onclick = () => runAction({ action: "publish", id: current.id }, "已推送草稿箱");
+$("deleteArticle").onclick = async () => {
+  if (!current || busy) return;
+  const button = $("deleteArticle");
+  if (!button.classList.contains("confirming")) {
+    button.classList.add("confirming");
+    button.textContent = "确认删除？";
+    button._timer = setTimeout(resetDeleteButton, 4000);
+    return;
+  }
+  clearTimeout(button._timer);
+  setBusy(true);
+  try {
+    const id = current.id;
+    const r = await rpc({ action: "deleteArticle", id });
+    if (!r || !r.ok) { toast("删除失败：" + ((r && r.error) || "")); resetDeleteButton(); return; }
+    toast("已删除《" + id + "》，文件在回收站");
+    current = null;
+    showList();
+  } finally {
+    setBusy(false);
+  }
+};
 $("searchSources").onclick = async () => {
   if (busy) return;
   const query = $("searchQuery").value.trim();
