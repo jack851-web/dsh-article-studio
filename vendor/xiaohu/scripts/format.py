@@ -2866,7 +2866,8 @@ def format_for_output(content: str, input_path: Path, theme: dict,
     # 通用预处理
     content = strip_frontmatter(content)
     # frontmatter title 但无 H1 → 注入 H1，让 hero 等布局能识别标题区
-    if title and not re.search(r'^#\s+', content, re.MULTILINE):
+    # --drop-title 时不再注入：公众号标题已在正文之外，注入只会把文件名当标题
+    if title and not args.drop_title and not re.search(r'^#\s+', content, re.MULTILINE):
         content = f"# {title}\n\n{content}"
     content = fix_cjk_spacing(content)
     content = fix_cjk_bold_punctuation(content)
@@ -3007,7 +3008,8 @@ def main():
     # 处理流程
     content = strip_frontmatter(content)
     # frontmatter title 但无 H1 → 注入 H1，让 hero 等布局能识别标题区
-    if title and not re.search(r'^#\s+', content, re.MULTILINE):
+    # --drop-title 时不再注入：公众号标题已在正文之外，注入只会把文件名当标题
+    if title and not args.drop_title and not re.search(r'^#\s+', content, re.MULTILINE):
         content = f"# {title}\n\n{content}"
     content = _auto_detect_byline(content)
     content = process_callouts(content)
