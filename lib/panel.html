@@ -88,7 +88,18 @@ button[disabled]{opacity:.4;cursor:not-allowed}
 .cover-card img{width:78px;height:104px;object-fit:contain;border:1px solid var(--line);background:#fff;display:none;padding:2px}
 .cover-card span{font:9px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
 .cover-card .no-cover{width:78px;height:104px;border:1px dashed var(--line);display:none;place-items:center;font:8.5px var(--mono);color:#B0A996}
-.state{font:10px var(--mono);letter-spacing:.04em;color:var(--muted);margin:12px 0 9px;min-height:14px}
+.source-row{display:flex;gap:8px;margin-top:12px}
+.source-row input{flex:1;min-width:0;background:transparent;border:0;border-bottom:1px solid var(--line);padding:4px 1px;font:11.5px var(--sans);color:var(--ink);outline:none}
+.source-row input::placeholder{color:#B4AD9D}
+.source-row input:focus{border-bottom-color:var(--blue)}
+.paste-box{display:none;flex-direction:column;gap:6px;margin-top:8px}
+.paste-box.on{display:flex}
+.paste-box textarea{width:100%;height:96px;resize:vertical;background:#fff;border:1px solid var(--line);padding:6px;font:11px var(--mono);color:var(--ink);outline:none}
+.paste-box textarea:focus{border-color:var(--blue)}
+.sources{display:flex;flex-direction:column;gap:3px;margin-top:6px}
+.src-item{font:10px var(--mono);color:var(--muted);letter-spacing:.02em;display:flex;gap:6px}
+.src-item b{font-weight:500;color:var(--ink);font-family:var(--sans);font-size:11px}
+.state{font:10px var(--mono);letter-spacing:.04em;color:var(--muted);margin:10px 0 9px;min-height:14px}
 .publish{width:100%;padding:10px;background:var(--ink);color:var(--paper);border:1px solid var(--ink);border-radius:1px;font:600 13px var(--sans);letter-spacing:.04em}
 .publish:hover{background:var(--red);border-color:var(--red)}
 
@@ -169,6 +180,16 @@ button[disabled]{opacity:.4;cursor:not-allowed}
         <span>封面</span>
       </div>
     </div>
+    <div class="source-row">
+      <input id="sourceUrl" placeholder="粘贴公众号文章链接 mp.weixin.qq.com/s/…（导入正文和图片）">
+      <button id="importSource" class="mini primary">导入</button>
+      <button id="pasteToggle" class="link">粘贴导入</button>
+    </div>
+    <div class="paste-box" id="pasteBox">
+      <textarea id="pasteHtml" placeholder="在浏览器里打开文章，Ctrl+A 全选复制后粘贴到这里；也可以直接粘贴网页源码。微信对非客户端请求返回空壳，链接抓不到时用这个。"></textarea>
+      <button id="importPaste" class="mini primary">解析导入</button>
+    </div>
+    <div class="sources" id="sourceList"></div>
     <div class="state" id="state"></div>
     <button id="publish" class="publish">推送草稿 →</button>
   </div>
@@ -266,7 +287,7 @@ async function rpc(body){
 }
 function setBusy(v){
   busy = v;
-  ["publish","create","theme","fTitle","fAuthor","fGroup","fCover"].forEach((id) => {
+  ["publish","create","theme","fTitle","fAuthor","fGroup","fCover","importSource","sourceUrl"].forEach((id) => {
     const node = $(id);
     if (node) node.disabled = v;
   });
@@ -470,8 +491,24 @@ async function openArticle(id){
   $("title").textContent = title === current.id ? title : title + " · " + current.id;
   renderThemes();
   renderMetaFields(r);
+  renderSources(current.sources || []);
   $("preview").src = previewUrl();
   updateState();
+}
+
+function renderSources(list){
+  const box = $("sourceList");
+  box.innerHTML = "";
+  (list || []).slice(0, 4).forEach((item) => {
+    const row = document.createElement("div");
+    row.className = "src-item";
+    const name = document.createElement("b");
+    name.textContent = item.title || item.url;
+    const meta = document.createElement("span");
+    meta.textContent = (item.images || 0) + " 图 · " + (item.chars || 0) + " 字";
+    row.append(name, meta);
+    box.appendChild(row);
+  });
 }
 
 function renderMetaFields(r){
@@ -581,6 +618,38 @@ $("fAuthor").onchange = () => saveMeta("author", $("fAuthor").value.trim());
 $("fGroup").onchange = () => saveMeta("group", $("fGroup").value.trim());
 $("fCover").onchange = () => saveMeta("cover", $("fCover").value);
 $("publish").onclick = () => runAction({ action: "publish", id: current.id }, "已推送草稿箱");
+$("pasteToggle").onclick = () => $("pasteBox").classList.toggle("on");
+$("importPaste").onclick = async () => {
+  if (!current || busy) return;
+  const html = $("pasteHtml").value.trim();
+  if (html.length < 40) { toast("先粘贴正文或网页源码"); return; }
+  setBusy(true);
+  try {
+    const r = await rpc({ action: "importSource", id: current.id, html });
+    if (!r || !r.ok) { toast("解析失败：" + ((r && r.error) || "")); return; }
+    toast("已导入《" + r.title + "》· " + r.chars + " 字 · " + (r.images || []).length + " 图");
+    $("pasteHtml").value = "";
+    $("pasteBox").classList.remove("on");
+    await openArticle(current.id);
+  } finally {
+    setBusy(false);
+  }
+};
+$("importSource").onclick = async () => {
+  if (!current || busy) return;
+  const url = $("sourceUrl").value.trim();
+  if (!url) { toast("先粘贴文章链接"); return; }
+  setBusy(true);
+  try {
+    const r = await rpc({ action: "importSource", id: current.id, url });
+    if (!r || !r.ok) { toast("导入失败：" + ((r && r.error) || "")); return; }
+    toast("已导入《" + r.title + "》· " + r.chars + " 字 · " + (r.images || []).length + " 图");
+    $("sourceUrl").value = "";
+    await openArticle(current.id);
+  } finally {
+    setBusy(false);
+  }
+};
 $("back").onclick = showList;
 $("refresh").onclick = () => { if (current) openArticle(current.id); else loadList(); };
 $("create").onclick = async () => {
