@@ -55,6 +55,7 @@
 - 主题来自内置 85 套（`vendor/xiaohu/themes/*.json`），默认 `newspaper`；
 - 每次切换主题 = 写入 `article.json` + 调用 `format.py` + 刷新预览，三者不可分开；
 - 预览为手机宽度（415px）取景框，呈现公众号真实排版；
+- **正文不重复标题**：`format.py` 始终带 `--drop-title`，丢掉 `draft.md` 第一行的 `# 标题`，并关闭 hero 首屏——公众号本身已显示标题。版头位置放品牌图（如 `images/logo.png`、`images/brand.png`）；
 - 排版失败必须原样返回脚本错误，不得静默。
 
 ## 6. 发布规范

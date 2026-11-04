@@ -2941,6 +2941,8 @@ def main():
                         help="输出格式: wechat(默认), html(标准HTML), plain(纯HTML)")
     parser.add_argument("--smart", action="store_true",
                         help="AI 语义增强：自动分析文章并添加排版标记（需 config.json 配置 smart_api）")
+    parser.add_argument("--drop-title", action="store_true",
+                        help="丢掉文档第一行的 # 标题（公众号已有标题，正文不再重复）")
     parser.add_argument("--font-size", type=int, default=None,
                         help="正文字号（默认15px），如 --font-size 16")
     args = parser.parse_args()
@@ -2967,6 +2969,18 @@ def main():
 
     # 读取文章
     content = input_path.read_text(encoding="utf-8")
+
+    # --drop-title: 公众号标题已在外部，正文不再重复；hero 首屏也一并关掉
+    if args.drop_title:
+        lines = content.splitlines()
+        for index, line in enumerate(lines):
+            if not line.strip():
+                continue
+            if line.lstrip().startswith("# "):
+                del lines[index]
+            break
+        content = "\n".join(lines)
+        theme.setdefault("hero", {})["dark_header"] = False
 
     # --smart: AI 语义增强（在所有处理之前）
     if args.smart:
