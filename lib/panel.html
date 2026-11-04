@@ -62,6 +62,17 @@ select.theme{flex:1;min-width:0;padding:5px 8px;border:1px solid var(--rule);bor
 .row[draggable]{cursor:grab}
 .row.dragging{opacity:.45}
 .row.drop{background:rgba(59,108,246,.1)}
+.row{display:flex;gap:10px;align-items:center}
+.thumb{width:46px;height:60px;flex:none;border-radius:5px;overflow:hidden;background:#eee;border:1px solid rgba(0,0,0,.08);display:flex;align-items:center;justify-content:center;font-size:9px;color:#9a948a}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.rmain{flex:1;min-width:0}
+.gtitle{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.gtitle .gops{margin-left:auto;display:flex;gap:4px}
+.gbtn{border:1px solid var(--rule);background:#fff;border-radius:5px;font-size:10px;padding:1px 6px;cursor:pointer;color:var(--muted)}
+.gbtn:hover{color:var(--ink);border-color:var(--ink)}
+.gbtn.danger{color:var(--red);border-color:#e7c3ba}
+.coverthumb{width:64px;height:84px;object-fit:cover;border-radius:6px;border:1px solid var(--rule);margin-top:4px;background:#eee;display:none}
+.ginput{flex:1;min-width:120px;padding:3px 7px;border:1px solid var(--ink);border-radius:5px;font:inherit;font-size:12px;outline:none}
 </style>
 </head>
 <body>
@@ -91,7 +102,7 @@ select.theme{flex:1;min-width:0;padding:5px 8px;border:1px solid var(--rule);bor
       <label class="fld"><span>题目</span><input id="fTitle" placeholder="文章标题"></label>
       <label class="fld"><span>作者</span><input id="fAuthor" list="authorList" placeholder="署名"><datalist id="authorList"></datalist></label>
       <label class="fld"><span>分组</span><input id="fGroup" list="groupList" placeholder="如：具身智能"><datalist id="groupList"></datalist></label>
-      <label class="fld"><span>封面</span><select id="fCover"></select></label>
+      <label class="fld"><span>封面</span><select id="fCover"></select><img id="coverThumb" class="coverthumb" alt="当前封面"></label>
     </div>
     <div class="actions"><button id="publish" class="primary">推送草稿</button></div>
     <div class="hint" id="state"></div>
@@ -206,11 +217,25 @@ function moveArticle(id, group){
   });
 }
 
+function assetUrl(id, rel){
+  return "/dsh-article-studio/asset/" + encodeURIComponent(id) + "/" + String(rel).split("/").map(encodeURIComponent).join("/");
+}
+
 function makeRow(a){
   const row = document.createElement("div");
   row.className = "row";
   row.draggable = true;
-  row.innerHTML = '<div class="rt"></div><div class="rm"><span></span><span></span></div>';
+  row.innerHTML = '<div class="thumb"></div><div class="rmain"><div class="rt"></div><div class="rm"><span></span><span></span></div></div>';
+  const thumb = row.querySelector(".thumb");
+  if (a.cover) {
+    const img = document.createElement("img");
+    img.src = assetUrl(a.id, a.cover);
+    img.alt = "封面";
+    thumb.appendChild(img);
+  } else {
+    thumb.textContent = "无封面";
+    thumb.classList.add("empty-thumb");
+  }
   row.querySelector(".rt").textContent = a.title || a.id;
   row.querySelectorAll(".rm span")[0].textContent = String(a.updatedAt || "").replace("T", " ");
   row.querySelectorAll(".rm span")[1].textContent = "第 " + (a.draftVersion || 0) + " 稿" + (a.author ? " · " + a.author : "");
@@ -222,6 +247,62 @@ function makeRow(a){
   });
   row.addEventListener("dragend", () => row.classList.remove("dragging"));
   return row;
+}
+
+function startRename(title, name){
+  title.innerHTML = "";
+  title.onclick = null;
+  const input = document.createElement("input");
+  input.className = "ginput";
+  input.value = name;
+  const save = document.createElement("button");
+  save.className = "gbtn";
+  save.textContent = "保存";
+  const cancel = document.createElement("button");
+  cancel.className = "gbtn";
+  cancel.textContent = "取消";
+  title.append(input, save, cancel);
+  input.onclick = (e) => e.stopPropagation();
+  input.focus();
+  input.select();
+  const finish = async (commit) => {
+    if (!commit) { loadList(); return; }
+    const next = input.value.trim();
+    if (!next || next === name) { loadList(); return; }
+    const r = await rpc({ action: "renameGroup", from: name, to: next });
+    toast(r && r.ok ? "已改名为：" + next : "改名失败：" + ((r && r.error) || ""));
+    if (viewGroup === name) viewGroup = next;
+    loadList();
+  };
+  save.onclick = (e) => { e.stopPropagation(); finish(true); };
+  cancel.onclick = (e) => { e.stopPropagation(); finish(false); };
+  input.onkeydown = (e) => {
+    e.stopPropagation();
+    if (e.key === "Enter") finish(true);
+    if (e.key === "Escape") finish(false);
+  };
+}
+
+function startDelete(title, name, count){
+  title.innerHTML = "";
+  title.onclick = null;
+  const text = document.createElement("span");
+  text.textContent = "删除「" + name + "」？" + (count ? "其中 " + count + " 篇移回未分组" : "该分组为空");
+  const yes = document.createElement("button");
+  yes.className = "gbtn danger";
+  yes.textContent = "删除";
+  const no = document.createElement("button");
+  no.className = "gbtn";
+  no.textContent = "取消";
+  yes.onclick = async (e) => {
+    e.stopPropagation();
+    const r = await rpc({ action: "deleteGroup", name });
+    toast(r && r.ok ? "已删除分组：" + name : "删除失败：" + ((r && r.error) || ""));
+    if (viewGroup === name) viewGroup = null;
+    loadList();
+  };
+  no.onclick = (e) => { e.stopPropagation(); loadList(); };
+  title.append(text, yes, no);
 }
 
 function dropTarget(node, group){
@@ -258,8 +339,24 @@ function renderRows(list){
   });
   [...buckets.keys()].sort((left, right) => (left === "未分组" ? 1 : right === "未分组" ? -1 : left.localeCompare(right))).forEach((name) => {
     const title = document.createElement("div");
-    title.className = "group-title";
-    title.textContent = name + " · " + buckets.get(name).length + "  （点击进入 / 可拖入）";
+    title.className = "group-title gtitle";
+    const label = document.createElement("span");
+    label.textContent = name + " · " + buckets.get(name).length + " 篇";
+    title.appendChild(label);
+    if (name !== "未分组") {
+      const ops = document.createElement("span");
+      ops.className = "gops";
+      const rename = document.createElement("button");
+      rename.className = "gbtn";
+      rename.textContent = "改名";
+      rename.onclick = (e) => { e.stopPropagation(); startRename(title, name); };
+      const del = document.createElement("button");
+      del.className = "gbtn danger";
+      del.textContent = "删除";
+      del.onclick = (e) => { e.stopPropagation(); startDelete(title, name, buckets.get(name).length); };
+      ops.append(rename, del);
+      title.appendChild(ops);
+    }
     title.onclick = () => { viewGroup = name === "未分组" ? "" : name; renderRows(list); };
     dropTarget(title, name === "未分组" ? "" : name);
     box.appendChild(title);
@@ -308,6 +405,18 @@ function renderMetaFields(r){
   }));
   $("fCover").innerHTML = options.join("");
   $("fCover").value = current.cover || "";
+  syncCoverThumb();
+}
+
+function syncCoverThumb(){
+  const thumb = $("coverThumb");
+  if (current && current.cover) {
+    thumb.src = assetUrl(current.id, current.cover);
+    thumb.style.display = "block";
+  } else {
+    thumb.removeAttribute("src");
+    thumb.style.display = "none";
+  }
 }
 
 function updateState(images){
@@ -330,6 +439,7 @@ async function saveMeta(field, value){
     const title = current.title || current.id;
     $("title").textContent = title === current.id ? title : title + " · " + current.id;
     updateState();
+    syncCoverThumb();
     loadList();
   } finally {
     setBusy(false);
