@@ -181,6 +181,11 @@ button[disabled]{opacity:.4;cursor:not-allowed}
       </div>
     </div>
     <div class="source-row">
+      <input id="searchQuery" placeholder="搜索资料：公司名 / 关键词">
+      <button id="searchSources" class="mini">搜索</button>
+    </div>
+    <div class="sources" id="searchResults"></div>
+    <div class="source-row">
       <input id="sourceUrl" placeholder="粘贴公众号文章链接 mp.weixin.qq.com/s/…（导入正文和图片）">
       <button id="importSource" class="mini primary">导入</button>
       <button id="pasteToggle" class="link">粘贴导入</button>
@@ -618,6 +623,34 @@ $("fAuthor").onchange = () => saveMeta("author", $("fAuthor").value.trim());
 $("fGroup").onchange = () => saveMeta("group", $("fGroup").value.trim());
 $("fCover").onchange = () => saveMeta("cover", $("fCover").value);
 $("publish").onclick = () => runAction({ action: "publish", id: current.id }, "已推送草稿箱");
+$("searchSources").onclick = async () => {
+  if (busy) return;
+  const query = $("searchQuery").value.trim();
+  if (!query) { toast("先输入关键词"); return; }
+  setBusy(true);
+  try {
+    const r = await rpc({ action: "searchSources", query });
+    if (!r || !r.ok) { toast("搜索失败：" + ((r && r.error) || "")); return; }
+    const box = $("searchResults");
+    box.innerHTML = "";
+    (r.items || []).forEach((item) => {
+      const row = document.createElement("div");
+      row.className = "src-item";
+      const name = document.createElement("b");
+      name.textContent = item.title;
+      name.style.cursor = "pointer";
+      name.onclick = () => { $("sourceUrl").value = item.url; toast("已填入链接，点「导入」抓正文和图片"); };
+      const host = document.createElement("span");
+      try { host.textContent = new URL(item.url).hostname.replace(/^www\./, ""); } catch { host.textContent = ""; }
+      row.append(name, host);
+      box.appendChild(row);
+    });
+    if (!(r.items || []).length) box.textContent = "没有结果";
+    toast("找到 " + (r.items || []).length + " 条，点标题填入链接");
+  } finally {
+    setBusy(false);
+  }
+};
 $("pasteToggle").onclick = () => $("pasteBox").classList.toggle("on");
 $("importPaste").onclick = async () => {
   if (!current || busy) return;
