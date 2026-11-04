@@ -228,7 +228,8 @@ async function applyTheme(name){
     const f = await rpc({ action: "format", id: current.id, theme: name });
     if (!f || !f.ok) { toast("排版失败：" + ((f && f.error) || "")); return; }
     $("preview").src = previewUrl();
-    toast("已切换风格：" + name);
+    const missing = (f.warnings || []);
+    toast(missing.length ? "已切换，但缺配图：" + missing.join("、") : "已切换风格：" + name);
   } finally {
     setBusy(false);
   }
@@ -238,7 +239,8 @@ async function runAction(body, okText){
   setBusy(true);
   try {
     const r = await rpc(body);
-    toast(r && r.ok ? okText : "失败：" + ((r && r.error) || "未知错误"));
+    const missing = (r && r.warnings) || [];
+    toast(r && r.ok ? (missing.length ? okText + "，但缺配图：" + missing.join("、") : okText) : "失败：" + ((r && r.error) || "未知错误"));
     if (r && r.ok && body.action === "format") $("preview").src = previewUrl();
   } finally {
     setBusy(false);
