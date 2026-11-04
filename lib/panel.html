@@ -243,6 +243,22 @@ button[disabled]{opacity:.4;cursor:not-allowed}
     </div>
     <div class="hint" id="settingsPath"></div>
   </div>
+  <div class="panel-section">
+    <h3>配图校验（可选）</h3>
+    <div class="field">
+      <label>视觉接口 Base URL</label>
+      <input id="setVisionBase" placeholder="https://api.openai.com/v1">
+      <span class="note">任意 OpenAI 兼容端点；留空则只做元数据指纹检查</span>
+    </div>
+    <div class="field">
+      <label>模型</label>
+      <input id="setVisionModel" placeholder="如 gpt-4o-mini / qwen-vl-plus">
+    </div>
+    <div class="field">
+      <label>API Key</label>
+      <input id="setVisionKey" placeholder="已保存则显示 ******">
+    </div>
+  </div>
   <div class="actions">
     <button id="saveSettings" class="primary">保存设置</button>
     <button id="closeSettings" class="ghost">返回</button>
@@ -746,6 +762,9 @@ $("settingsBtn").onclick = async () => {
   $("setAppId").value = r.wechat.app_id || "";
   $("setAppSecret").value = r.wechat.app_secret || "";
   $("setAuthor").value = r.wechat.author || "";
+  $("setVisionBase").value = (r.vision || {}).baseUrl || "";
+  $("setVisionModel").value = (r.vision || {}).model || "";
+  $("setVisionKey").value = (r.vision || {}).apiKey || "";
   $("settingsPath").textContent = "设置文件：" + (r.settingsPath || "") + "\n公众号配置：" + (r.configPath || "");
   $("rows").style.display = "none";
   $("newbar").style.display = "none";
@@ -768,6 +787,11 @@ $("saveSettings").onclick = async () => {
       app_id: $("setAppId").value.trim(),
       app_secret: $("setAppSecret").value,
       author: $("setAuthor").value.trim()
+    },
+    vision: {
+      baseUrl: $("setVisionBase").value.trim(),
+      model: $("setVisionModel").value.trim(),
+      apiKey: $("setVisionKey").value
     }
   });
   toast(r && r.ok ? "设置已保存" : "保存失败：" + ((r && r.error) || ""));
