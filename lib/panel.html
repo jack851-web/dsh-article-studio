@@ -62,7 +62,7 @@ button[disabled]{opacity:.4;cursor:not-allowed}
 .row.dragging{opacity:.4}
 .row.drop{background:var(--blue-soft)}
 .thumb{width:52px;height:68px;flex:none;border:1px solid var(--line);background:#fff;overflow:hidden;position:relative;display:grid;place-items:center;font:8.5px var(--mono);letter-spacing:.08em;color:#B0A996}
-.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.thumb img{width:100%;height:100%;object-fit:contain;display:block;background:#fff;padding:2px}
 .thumb.empty-thumb{background:repeating-linear-gradient(135deg,#F4F2EB,#F4F2EB 6px,#EDEAE0 6px,#EDEAE0 12px)}
 .rmain{flex:1;min-width:0}
 .rt{font:600 14px/1.35 var(--serif);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -85,7 +85,7 @@ button[disabled]{opacity:.4;cursor:not-allowed}
 .fld input:focus,.fld select:focus{border-bottom-color:var(--blue)}
 .fld select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 9px) 55%,calc(100% - 5px) 55%;background-size:4px 4px;background-repeat:no-repeat;padding-right:16px}
 .cover-card{width:78px;flex:none;display:flex;flex-direction:column;gap:4px}
-.cover-card img{width:78px;height:104px;object-fit:cover;border:1px solid var(--line);background:#fff;display:none}
+.cover-card img{width:78px;height:104px;object-fit:contain;border:1px solid var(--line);background:#fff;display:none;padding:2px}
 .cover-card span{font:9px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
 .cover-card .no-cover{width:78px;height:104px;border:1px dashed var(--line);display:none;place-items:center;font:8.5px var(--mono);color:#B0A996}
 .state{font:10px var(--mono);letter-spacing:.04em;color:var(--muted);margin:12px 0 9px;min-height:14px}
