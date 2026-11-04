@@ -321,7 +321,7 @@ $("fTitle").onchange = () => saveMeta("title", $("fTitle").value.trim());
 $("fAuthor").onchange = () => saveMeta("author", $("fAuthor").value.trim());
 $("fGroup").onchange = () => saveMeta("group", $("fGroup").value.trim());
 $("fCover").onchange = () => saveMeta("cover", $("fCover").value);
-$("publish").onclick = () => runAction({ action: "publish", id: current.id, dryRun: false }, "已推送草稿箱");
+$("publish").onclick = () => runAction({ action: "publish", id: current.id }, "已推送草稿箱");
 $("back").onclick = showList;
 $("refresh").onclick = () => { if (current) openArticle(current.id); else loadList(); };
 $("create").onclick = async () => {

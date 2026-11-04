@@ -50,9 +50,10 @@ POST /dsh-article-studio/rpc
   { "action": "list" }
   { "action": "get", "id": "..." }
   { "action": "create", "title": "..." }
+  { "action": "update", "id": "...", "title": "...", "author": "...", "group": "...", "cover": "images/x.jpg" }
   { "action": "set", "id": "...", "stage": "review", "status": "done", "note": "" }
   { "action": "format", "id": "...", "theme": "newspaper" }
-  { "action": "publish", "id": "...", "dryRun": true }
+  { "action": "publish", "id": "..." }        # 直接写公众号草稿箱，无演练步骤
 
 GET /dsh-article-studio/preview/<id>          # 最新 preview.html（注入 base）
 GET /dsh-article-studio/preview/<id>/<path>   # 预览资源
