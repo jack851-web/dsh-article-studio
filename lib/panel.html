@@ -192,19 +192,33 @@ async function loadList(){
   renderRows(r.articles || []);
 }
 async function openArticle(id){
-  const r = await rpc({ action: "get", id: id });
-  if (!r || !r.ok) { toast("打开失败：" + ((r && r.error) || "")); return; }
-  current = r.article;
+  // Drop the previous article's state first: a slow load must never leave the
+  // old title, theme or proof on screen while another article is opening.
+  current = null;
+  $("title").textContent = "加载中…";
+  $("state").textContent = "";
+  $("detail").style.display = "flex";
+  $("preview").removeAttribute("src");
   $("settingsView").classList.remove("on");
   $("newbar").style.display = "none";
   $("rows").style.display = "none";
-  $("detail").style.display = "flex";
   $("back").style.display = "";
-  $("title").textContent = current.title || current.id;
-  const imageCount = (r.images || []).length;
-  $("state").textContent = "第 " + (current.draftVersion || 0) + " 稿 · " + (current.theme || "") + " · 配图 " + imageCount + " 张" + (imageCount < 3 ? "（不足 3 张，排版会被拦下）" : "");
+  const r = await rpc({ action: "get", id: id });
+  if (!r || !r.ok) { toast("打开失败：" + ((r && r.error) || "")); $("title").textContent = "打开失败"; return; }
+  current = r.article;
+  current.images = r.images || [];
+  const title = current.title || current.id;
+  $("title").textContent = title === current.id ? title : title + " · " + current.id;
   renderThemes();
   $("preview").src = previewUrl();
+  updateState();
+}
+
+function updateState(images){
+  if (!current) return;
+  const list = images || current.images || [];
+  const count = list.length;
+  $("state").textContent = "第 " + (current.draftVersion || 0) + " 稿 · " + (current.theme || "") + " · 配图 " + count + " 张" + (count < 3 ? "（不足 3 张，排版会被拦下）" : "");
 }
 function showList(){
   current = null;
@@ -224,10 +238,11 @@ async function applyTheme(name){
     if (!t || !t.ok) { toast("切换失败：" + ((t && t.error) || "")); return; }
     current.theme = name;
     renderThemes();
-    $("state").textContent = "第 " + (current.draftVersion || 0) + " 稿 · " + name;
+    updateState();
     const f = await rpc({ action: "format", id: current.id, theme: name });
     if (!f || !f.ok) { toast("排版失败：" + ((f && f.error) || "")); return; }
     $("preview").src = previewUrl();
+    updateState();
     const missing = (f.warnings || []);
     toast(missing.length ? "已切换，但缺配图：" + missing.join("、") : "已切换风格：" + name);
   } finally {
