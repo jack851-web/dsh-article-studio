@@ -47,6 +47,12 @@ select.theme{flex:1;min-width:0;padding:5px 8px;border:1px solid var(--rule);bor
 .field .note{font-size:10.5px;color:var(--muted)}
 .settings .actions{margin-top:6px}
 #settingsPath{white-space:pre-line}
+.fields{display:flex;flex-wrap:wrap;gap:8px}
+.fld{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--muted);flex:1 1 150px;min-width:130px}
+.fld span{font-size:10.5px}
+.fld input,.fld select{padding:5px 7px;border:1px solid var(--rule);border-radius:6px;background:#fff;color:var(--ink);font:inherit;font-size:12px;outline:none}
+.fld input:focus,.fld select:focus{border-color:var(--ink)}
+.group-title{font-size:11px;color:var(--muted);padding:10px 4px 2px;letter-spacing:.04em}
 </style>
 </head>
 <body>
@@ -64,13 +70,14 @@ select.theme{flex:1;min-width:0;padding:5px 8px;border:1px solid var(--rule);bor
 <div class="rows" id="rows"></div>
 <div class="detail" id="detail" style="display:none">
   <div class="controls">
-    <div class="chips"><select id="theme" class="theme" title="排版风格（来自 xiaohu-wechat-format 的 85 套主题）"></select></div>
-    <div class="actions">
-      <button id="apply" class="primary">应用排版</button>
-      <button id="grab">抓官网配图</button>
-      <button id="dry">演练</button>
-      <button id="publish">推送草稿</button>
+    <div class="fields">
+      <label class="fld"><span>主题</span><select id="theme" title="选中即生效"></select></label>
+      <label class="fld"><span>题目</span><input id="fTitle" placeholder="文章标题"></label>
+      <label class="fld"><span>作者</span><input id="fAuthor" list="authorList" placeholder="署名"><datalist id="authorList"></datalist></label>
+      <label class="fld"><span>分组</span><input id="fGroup" list="groupList" placeholder="如：具身智能"><datalist id="groupList"></datalist></label>
+      <label class="fld"><span>封面</span><select id="fCover"></select></label>
     </div>
+    <div class="actions"><button id="publish" class="primary">推送草稿</button></div>
     <div class="hint" id="state"></div>
   </div>
   <div class="stage"><div class="phone"><iframe id="preview" title="preview"></iframe></div></div>
@@ -150,7 +157,10 @@ async function rpc(body){
 }
 function setBusy(v){
   busy = v;
-  ["apply","dry","publish","create","theme","grab"].forEach((id) => { $(id).disabled = v; });
+  ["publish","create","theme","fTitle","fAuthor","fGroup","fCover"].forEach((id) => {
+    const node = $(id);
+    if (node) node.disabled = v;
+  });
 }
 function previewUrl(){ return "/dsh-article-studio/preview/" + encodeURIComponent(current.id) + "?t=" + (++tick); }
 
@@ -175,15 +185,27 @@ function renderRows(list){
   const box = $("rows");
   box.innerHTML = "";
   if (!list.length) { box.innerHTML = '<div class="empty">还没有文章，先在上面新建一篇。</div>'; return; }
+  const groups = new Map();
   list.forEach((a) => {
-    const row = document.createElement("div");
-    row.className = "row";
-    row.innerHTML = '<div class="rt"></div><div class="rm"><span></span><span></span></div>';
-    row.querySelector(".rt").textContent = a.title || a.id;
-    row.querySelectorAll(".rm span")[0].textContent = String(a.updatedAt || "").replace("T"," ");
-    row.querySelectorAll(".rm span")[1].textContent = "第 " + (a.draftVersion || 0) + " 稿";
-    row.onclick = () => openArticle(a.id);
-    box.appendChild(row);
+    const key = String(a.group || "").trim() || "未分组";
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(a);
+  });
+  [...groups.keys()].sort((left, right) => (left === "未分组" ? 1 : right === "未分组" ? -1 : left.localeCompare(right))).forEach((key) => {
+    const title = document.createElement("div");
+    title.className = "group-title";
+    title.textContent = key + " · " + groups.get(key).length;
+    box.appendChild(title);
+    groups.get(key).forEach((a) => {
+      const row = document.createElement("div");
+      row.className = "row";
+      row.innerHTML = '<div class="rt"></div><div class="rm"><span></span><span></span></div>';
+      row.querySelector(".rt").textContent = a.title || a.id;
+      row.querySelectorAll(".rm span")[0].textContent = String(a.updatedAt || "").replace("T", " ");
+      row.querySelectorAll(".rm span")[1].textContent = "第 " + (a.draftVersion || 0) + " 稿" + (a.author ? " · " + a.author : "");
+      row.onclick = () => openArticle(a.id);
+      box.appendChild(row);
+    });
   });
 }
 async function loadList(){
@@ -210,15 +232,49 @@ async function openArticle(id){
   const title = current.title || current.id;
   $("title").textContent = title === current.id ? title : title + " · " + current.id;
   renderThemes();
+  renderMetaFields(r);
   $("preview").src = previewUrl();
   updateState();
+}
+
+function renderMetaFields(r){
+  $("fTitle").value = current.title || "";
+  $("fAuthor").value = current.author || "";
+  $("fGroup").value = current.group || "";
+  $("authorList").innerHTML = (r.authors || []).map((name) => '<option value="' + name + '">').join("");
+  $("groupList").innerHTML = (r.groups || []).map((name) => '<option value="' + name + '">').join("");
+  const options = ['<option value="">不设封面</option>'].concat((current.images || []).map((image) => {
+    const value = "images/" + image.name;
+    return '<option value="' + value + '">' + image.name + "</option>";
+  }));
+  $("fCover").innerHTML = options.join("");
+  $("fCover").value = current.cover || "";
 }
 
 function updateState(images){
   if (!current) return;
   const list = images || current.images || [];
   const count = list.length;
-  $("state").textContent = "第 " + (current.draftVersion || 0) + " 稿 · " + (current.theme || "") + " · 配图 " + count + " 张" + (count < 3 ? "（不足 3 张，排版会被拦下）" : "");
+  const cover = current.cover ? "封面 ✓" : "未设封面";
+  const author = current.author ? "作者 " + current.author : "未署名";
+  const group = current.group ? "分组 " + current.group : "未分组";
+  $("state").textContent = "第 " + (current.draftVersion || 0) + " 稿 · " + (current.theme || "") + " · 配图 " + count + " 张 · " + cover + " · " + author + " · " + group + (count < 3 ? "（不足 3 张，排版会被拦下）" : "");
+}
+
+async function saveMeta(field, value){
+  if (!current || busy) return;
+  setBusy(true);
+  try {
+    const r = await rpc({ action: "update", id: current.id, [field]: value });
+    if (!r || !r.ok) { toast("保存失败：" + ((r && r.error) || "")); return; }
+    current = Object.assign(current, r.article);
+    const title = current.title || current.id;
+    $("title").textContent = title === current.id ? title : title + " · " + current.id;
+    updateState();
+    loadList();
+  } finally {
+    setBusy(false);
+  }
 }
 function showList(){
   current = null;
@@ -261,21 +317,10 @@ async function runAction(body, okText){
     setBusy(false);
   }
 }
-$("apply").onclick = () => runAction({ action: "format", id: current.id, theme: current.theme }, "已更新预览");
-$("grab").onclick = async () => {
-  if (!current || busy) return;
-  const url = current.sourceUrl;
-  if (!url) { toast("先在 article.json 里填 sourceUrl（官网地址）"); return; }
-  setBusy(true);
-  try {
-    const r = await rpc({ action: "grab", id: current.id, url });
-    toast(r && r.ok ? "已抓取 " + r.saved + " 张官网图" : "抓取失败：" + ((r && r.error) || ""));
-    if (r && r.ok) await openArticle(current.id);
-  } finally {
-    setBusy(false);
-  }
-};
-$("dry").onclick = () => runAction({ action: "publish", id: current.id, dryRun: true }, "演练完成");
+$("fTitle").onchange = () => saveMeta("title", $("fTitle").value.trim());
+$("fAuthor").onchange = () => saveMeta("author", $("fAuthor").value.trim());
+$("fGroup").onchange = () => saveMeta("group", $("fGroup").value.trim());
+$("fCover").onchange = () => saveMeta("cover", $("fCover").value);
 $("publish").onclick = () => runAction({ action: "publish", id: current.id, dryRun: false }, "已推送草稿箱");
 $("back").onclick = showList;
 $("refresh").onclick = () => { if (current) openArticle(current.id); else loadList(); };
